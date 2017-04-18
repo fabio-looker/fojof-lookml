@@ -1,8 +1,6 @@
 #Any connection since the model only uses DT literals
 connection: "races"
 
-label: "Fabio's"
-
 explore: all_the_things {
 
   hidden: yes
