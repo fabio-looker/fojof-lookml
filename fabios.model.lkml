@@ -127,11 +127,13 @@ view: all_the_things {
   dimension: combined_date {
     hidden: yes
     sql: COALESCE({%
-      if pageviews.count._in_query
+      if pageviews.count._in_query=='1=1'
+      or all_the_things.product_conversion_rate._in_query contains '1=1'
       %}
       pageviews.pv_date, {% endif %}{%
-      if orders.count._in_query
-      or orders.total_sales._in_query
+      if orders.count._in_query=='1=1'
+      or orders.total_sales._in_query=='1=1'
+      or all_the_things.product_conversion_rate._in_query contains '1=1'
       %}
       orders.order_date, {% endif %}
       NULL
@@ -238,25 +240,25 @@ view: managers {
 view: pageviews {
   derived_table: {
     sql:
-     SELECT CAST('2017-01-01' as date) as pv_date, 1 as product_id
+     SELECT CAST('2017-01-01' as timestamp) as pv_date, 1 as product_id
      UNION ALL
-     SELECT CAST('2017-01-15' as date) as pv_date, 2 as product_id
+     SELECT CAST('2017-01-15' as timestamp) as pv_date, 2 as product_id
      UNION ALL
-     SELECT CAST('2017-01-24' as date) as pv_date, 2 as product_id
+     SELECT CAST('2017-01-24' as timestamp) as pv_date, 2 as product_id
      UNION ALL
-     SELECT CAST('2017-02-01' as date) as pv_date, 1 as product_id
+     SELECT CAST('2017-02-01' as timestamp) as pv_date, 1 as product_id
      UNION ALL
-     SELECT CAST('2017-02-01' as date) as pv_date, 3 as product_id
+     SELECT CAST('2017-02-01' as timestamp) as pv_date, 3 as product_id
      UNION ALL
-     SELECT CAST('2017-02-01' as date) as pv_date, NULL as product_id
+     SELECT CAST('2017-02-01' as timestamp) as pv_date, NULL as product_id
      UNION ALL
-     SELECT CAST('2017-02-21' as date) as pv_date, 2 as product_id
+     SELECT CAST('2017-02-21' as timestamp) as pv_date, 2 as product_id
      UNION ALL
-     SELECT CAST('2017-03-01' as date) as pv_date, 3 as product_id
+     SELECT CAST('2017-03-01' as timestamp) as pv_date, 3 as product_id
      UNION ALL
-     SELECT CAST('2017-03-01' as date) as pv_date, NULL as product_id
+     SELECT CAST('2017-03-01' as timestamp) as pv_date, NULL as product_id
      UNION ALL
-     SELECT CAST('2017-03-15' as date) as pv_date, 2 as product_id
+     SELECT CAST('2017-03-15' as timestamp) as pv_date, 2 as product_id
     ;;
   }
   dimension_group: pv_date {
@@ -280,13 +282,13 @@ view: pageviews {
 view: orders {
   derived_table: {
     sql:
-     SELECT CAST('2017-01-01' as date) as order_date, 1 as product_id, 200 as sale_price
+     SELECT CAST('2017-01-01' as timestamp) as order_date, 1 as product_id, 200 as sale_price
      UNION ALL
-     SELECT CAST('2017-02-01' as date) as order_date, 3 as product_id, 1000 as sale_price
+     SELECT CAST('2017-02-01' as timestamp) as order_date, 3 as product_id, 1000 as sale_price
      UNION ALL
-     SELECT CAST('2017-02-21' as date) as order_date, 2 as product_id, 25 as sale_price
+     SELECT CAST('2017-02-21' as timestamp) as order_date, 2 as product_id, 25 as sale_price
      UNION ALL
-     SELECT CAST('2017-03-15' as date) as order_date, 2 as product_id, 50 as sale_price
+     SELECT CAST('2017-03-15' as timestamp) as order_date, 2 as product_id, 50 as sale_price
     ;;
   }
   dimension_group: order_date {
