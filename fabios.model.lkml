@@ -166,12 +166,12 @@ view: accounts {
     sql: ${TABLE}.employees ;;
   }
   measure: total_employees {
-    type: sum
-    sql: ${employees} ;;
+    type: number #Keep nulls as nulls
+    sql: SUM(${employees}) ;;
   }
   measure: count {
     type: number
-    sql: COUNT(${id}) ;;
+    sql: CASE WHEN MIN(${id}) IS NULL THEN NULL ELSE COUNT(${id}) END ;;
   }
 }
 
@@ -200,7 +200,7 @@ view: products {
   }
   measure: count {
     type: number
-    sql: COUNT(${id}) ;;
+    sql: CASE WHEN MIN(${id}) IS NULL THEN NULL ELSE COUNT(${id}) END;;
   }
 }
 
@@ -231,7 +231,7 @@ view: managers {
   }
   measure: count {
     type: number
-    sql: COUNT(${id}) ;;
+    sql: CASE WHEN MIN(${id}) IS NULL THEN NULL ELSE COUNT(${id}) END;;
   }
 }
 
@@ -272,7 +272,7 @@ view: pageviews {
   }
   measure: count {
     type: number
-    sql: COUNT(${TABLE}.pv_date) ;;
+    sql: CASE WHEN MIN(${TABLE}.pv_date) IS NULL THEN NULL ELSE COUNT(${TABLE}.pv_date) END ;;
   }
 }
 
@@ -307,10 +307,10 @@ view: orders {
   }
   measure: count {
     type: number
-    sql: COUNT(${TABLE}.order_date) ;;
+    sql: CASE WHEN MIN(${TABLE}.order_date) IS NULL THEN NULL ELSE COUNT(${TABLE}.order_date) END ;;
   }
   measure: total_sales {
-    type: sum
-    sql: ${sale_price} ;;
+    type: number #Not sum because we like nulls as nulls
+    sql: SUM(${sale_price}) ;;
   }
 }
