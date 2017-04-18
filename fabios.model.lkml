@@ -32,7 +32,10 @@ explore: all_the_things {
     type: full_outer
     sql_on: FALSE ;;
     relationship: one_to_one
-    fields: [count,total_sales]
+    fields: [count,total_sales,
+      shipped_date_date,shipped_date_week,shipped_date_month,shipped_date_year,
+        order_date_date,  order_date_week,  order_date_month,  order_date_year,
+      combined_date_on]
   }
 
   #"Dimension table" joins
@@ -117,12 +120,12 @@ view: all_the_things {
     hidden: yes
     sql: ${TABLE}.base ;;
   }
-  dimension_group: date {
+  dimension_group: combined {
     type: time
     timeframes: [date,week,month]
-    sql: ${combined_date} ;;
+    sql: ${combined_date_internal} ;;
   }
-  dimension: combined_date {
+  dimension: combined_date_internal {
     hidden: yes
     sql: COALESCE({%
       if pageviews.count._in_query contains '1=1'
@@ -133,8 +136,12 @@ view: all_the_things {
       or orders.total_sales._in_query contains '1=1'
       or all_the_things.product_conversion_rate._in_query contains '1=1'
       %}
-      orders.order_date, {% endif %}
-      NULL
+      CASE {% parameter orders.combined_date_on %}
+      WHEN 'Order Date' THEN orders.order_date
+      WHEN 'Shipped Date' THEN orders.shipped_date
+      ELSE orders.order_date
+      END, {% endif %}
+      CAST(NULL as timestamp)
     );;
   }
   measure: product_conversion_rate {
@@ -280,17 +287,24 @@ view: pageviews {
 view: orders {
   derived_table: {
     sql:
-     SELECT CAST('2017-01-02' as timestamp) as order_date, 1 as product_id, 200 as sale_price
+     SELECT CAST('2017-01-02' as timestamp) as order_date, CAST('2017-01-06' as timestamp) as shipped_date, 1 as product_id, 200 as sale_price
      UNION ALL
-     SELECT CAST('2017-02-02' as timestamp) as order_date, 3 as product_id, 1000 as sale_price
+     SELECT CAST('2017-02-02' as timestamp) as order_date, CAST('2017-02-02' as timestamp) as shipped_date,  3 as product_id, 1000 as sale_price
      UNION ALL
-     SELECT CAST('2017-02-21' as timestamp) as order_date, 2 as product_id, 25 as sale_price
+     SELECT CAST('2017-02-21' as timestamp) as order_date, CAST('2017-03-08' as timestamp) as shipped_date, 2 as product_id, 25 as sale_price
      UNION ALL
-     SELECT CAST('2017-03-15' as timestamp) as order_date, 2 as product_id, 50 as sale_price
+     SELECT CAST('2017-03-15' as timestamp) as order_date, CAST('2017-04-02' as timestamp) as shipped_date, 2 as product_id, 50 as sale_price
     ;;
   }
+  filter: combined_date_on {
+    suggestions: ["Order Date","Shipped Date"]
+  }
   dimension_group: order_date {
-    hidden:  yes
+    timeframes: [raw,date,week,month,year]
+    type: time
+    sql: ${TABLE}.order_date ;;
+  }
+  dimension_group: shipped_date {
     timeframes: [raw,date,week,month,year]
     type: time
     sql: ${TABLE}.order_date ;;
