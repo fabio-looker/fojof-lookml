@@ -4,17 +4,17 @@ connection: "races"
 explore: all_the_things {
 
   hidden: yes
- join: accounts {
+  join: accounts {
    type: full_outer
    sql_on: FALSE ;;
    relationship: one_to_one
-   fields: [count, total_employees]
- }
- join: products {
+   fields: [id,count, total_employees]
+  }
+  join: products {
     type: full_outer
     sql_on: FALSE ;;
     relationship: one_to_one
-    fields: [count]
+    fields: [count,count_subtotal_by_account]
   }
   join: managers {
     type: full_outer
@@ -50,33 +50,37 @@ explore: all_the_things {
     # Why? Looker doesn't automatically join in associated_products
     # if a user selects something from both accounts and orders/pageviews,
     # but not from products.
-    # So: I am always requiring associated_products, but from:products_or_empty
-    # which internally varies if dependent fields are in the query
+    # So: I am always requiring this join if accounts is required, but it
+    # changes between products or an empty select as appropriate based on
+    # wheter dependent fields are in the query
     # ...Also, liquid's boolean is basic... https://github.com/Shopify/liquid/issues/138
     sql_table_name:
     {%
-      if associated_product.name._in_query contains '1=1'
-      or orders.count._in_query contains '1=1'
-      or orders.total_sales._in_query contains '1=1'
-      or pageviews.count._in_query contains '1=1'
-      or all_the_things.product_conversion_rate._in_query contains '1=1'
+      if associated_product.name._in_query
+      or orders.count._in_query
+      or orders.total_sales._in_query
+      or pageviews.count._in_query
+      or all_the_things.product_conversion_rate._in_query
+      or products.count_subtotal_by_account._in_query
       %}products{%
       else
       %}
     (SELECT null as id, null as account_id FROM (SELECT NULL x) p where x IS NOT NULL)
     {% endif %};;
     sql_on: ${associated_product.id}=COALESCE({%
-      if products.count._in_query  == '1=1'
-      or products.name._in_query  == '1=1'
+      if products.count._in_query
+      or products.count_subtotal._in_query
+      or products.name._in_query
+      or products.count_subtotal_by_account._in_query
       %}
       products.id, {% endif %}{%
-      if pageviews.count._in_query  == '1=1'
-      or all_the_things.product_conversion_rate._in_query contains '1=1'
+      if pageviews.count._in_query
+      or all_the_things.product_conversion_rate._in_query
       %}
       pageviews.product_id, {% endif %}{%
-      if orders.count._in_query == '1=1'
-      or orders.total_sales._in_query == '1=1'
-      or all_the_things.product_conversion_rate._in_query contains '1=1'
+      if orders.count._in_query
+      or orders.total_sales._in_query
+      or all_the_things.product_conversion_rate._in_query
       %}
       orders.product_id, {% endif %}
       NULL) ;;
@@ -84,27 +88,30 @@ explore: all_the_things {
   join: associated_account {
     view_label: "Accounts"
     from: accounts
-    fields: [employees,name]
+    fields: [id,employees,name]
     type: full_outer
     relationship: many_to_one
     sql_on: ${associated_account.id}=COALESCE({%
-      if accounts.count._in_query  == '1=1'
-      or accounts.employees._in_query  == '1=1'
-      or accounts.name._in_query  == '1=1'
-      or accounts.total_employees._in_query  == '1=1'
+      if accounts.count._in_query
+      or accounts.employees._in_query
+      or accounts.name._in_query
+      or accounts.total_employees._in_query
+      or products.count_subtotal_by_account._in_query
       %}
       accounts.id, {% endif %}{%
-      if products.count._in_query == '1=1'
+      if products.count._in_query
+      or products.count_subtotal._in_query
       %}
       products.account_id, {% endif %}{%
-      if managers.count._in_query == '1=1'
+      if managers.count._in_query
       %}
       managers.account_id, {% endif %}{%
-      if pageviews.count._in_query == '1=1'
-      or orders.count._in_query == '1=1'
-      or orders.total_sales.in_query == '1=1'
-      or associated_product.name._in_query == '1=1'
-      or all_the_things.product_conversion_rate._in_query contains '1=1'
+      if pageviews.count._in_query
+      or orders.count._in_query
+      or orders.total_sales.in_query
+      or associated_product.name._in_query
+      or all_the_things.product_conversion_rate._in_query
+      or products.count_subtotal_by_account._in_query
       %}
       ${associated_product.account_id}, {% endif %}
       NULL);;
@@ -128,13 +135,13 @@ view: all_the_things {
   dimension: combined_date_internal {
     hidden: yes
     sql: COALESCE({%
-      if pageviews.count._in_query contains '1=1'
-      or all_the_things.product_conversion_rate._in_query contains '1=1'
+      if pageviews.count._in_query
+      or all_the_things.product_conversion_rate._in_query
       %}
       pageviews.pv_date, {% endif %}{%
-      if orders.count._in_query contains '1=1'
-      or orders.total_sales._in_query contains '1=1'
-      or all_the_things.product_conversion_rate._in_query contains '1=1'
+      if orders.count._in_query
+      or orders.total_sales._in_query
+      or all_the_things.product_conversion_rate._in_query
       %}
       CASE {% parameter orders.combined_date_on %}
       WHEN 'Order Date' THEN orders.order_date
@@ -208,6 +215,14 @@ view: products {
   measure: count {
     type: number
     sql: CASE WHEN MIN(${id}) IS NULL THEN NULL ELSE COUNT(${id}) END;;
+  }
+  measure: count_subtotal_by_account {
+    type: number
+    required_fields: [accounts.id,associated_account.id]
+    sql: CASE WHEN ${accounts.id} IS NOT NULL
+         THEN SUM(${count}) OVER (PARTITION BY ${associated_account.id})
+         ELSE NULL END
+    ;;
   }
 }
 
